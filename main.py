@@ -204,4 +204,7 @@ class NeuralNetwork:
         for layer in reversed(self.all_layers):
             wtimesdelta = layer.calcwdeltas(wtimesdelta)
 
-    def addLayer(type_layer, 
+    # not sure right now what else needs to be put in here but def need more params
+    def addLayer(type_layer):
+        pass
+
