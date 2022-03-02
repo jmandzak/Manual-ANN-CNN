@@ -152,7 +152,9 @@ class ConvolutionalLayer:
         # get the number of neurons in a kernel
         # this should be (Wi-Wf + 1) * (Hi - Hf + 1) where W is width, H is height, i is input, f is filter (which is kernel)
         num_neurons = (self.input_dim[0] - self.kernel_size + 1) * (self.input_dim[1] - self.kernel_size + 1)
-        self.feature_map_dim = num_neurons ** 0.5
+        
+        # save the dimension of the feature map (width only). This is equal to number of slides. Useful for calculation
+        self.feature_map_dim = self.input_dim[0] - self.kernel_size + 1
 
         for i in range(self.num_kernels):
             kernel_neurons = list()
@@ -175,9 +177,9 @@ class ConvolutionalLayer:
             all_inputs = []
             
             # next up is the number of different starting rows
-            for starting_row in range(self.kernel_size):
+            for starting_row in range(self.feature_map_dim):
                 # next up is the number of starting columns
-                for starting_col in range(self.kernel_size):
+                for starting_col in range(self.feature_map_dim):
 
                     # now the following 3d for loop gets all of the inputs for the specific neuron
                     kernel_inputs = []
@@ -202,7 +204,75 @@ class ConvolutionalLayer:
 
             all_outputs.append(feature_map)
 
-        print(all_outputs)
+        return all_outputs
+
+
+
+# Flattening Layer
+class FlattenLayer:
+    def __init__(self, input_size):
+        self.input_size = input_size    # input size should be a tuple or list in the form (num_channels, num_neurons)
+
+    def calculate(self, input):
+        output = []
+        for channel in range(self.input_size[0]):
+            for neuron in range(self.input_size[1]):
+                output.append(input[channel][neuron])
+
+        return output
+
+
+# Max Pooling Layer
+class MaxPoolingLayer:
+    def __init__(self, kernel_size, input_dim):
+        self.kernel_size = kernel_size
+        self.input_dim = input_dim      # this should again be a 3d list or tuple (width, height, depth)
+        self.feature_map_dim = (self.input_dim[0] - self.kernel_size) / self.kernel_size + 1
+
+    def calculate(self, input):
+        self.locations = []     # this will be a 2d list of all locations of max vals. first dim = channel, second dim = locations
+        self.max_values = []    # also a 2d matrix, this time of the max vals
+
+        # create list for looping purposes
+        stride_loop = [i for i in range(self.input_dim[0]) if i%self.kernel_size == 0]
+       
+
+        for channel in range(self.input_dim[2]):
+            kernel_max_vals = []
+            kernel_max_indices = []
+            
+            for starting_row in stride_loop:
+                # next up is the number of starting columns
+                for starting_col in stride_loop:
+
+                    # now the following 3d for loop gets all of the inputs for the specific neuron
+                    values = []
+                    positions = []
+
+                    # next step: each row in kernel
+                    for row in range(self.kernel_size):
+
+                        # final loop: each column in kernel
+                        for col in range(self.kernel_size):
+                            actual_row = (starting_row + row) * self.input_dim[0]
+                            actual_col = (starting_col + col)
+                            values.append(input[channel][actual_row + actual_col])
+                            positions.append(actual_row + actual_col)
+                            
+                    max_val = max(values)
+                    max_index = values.index(max_val)
+                    max_index = positions[max_index]
+
+                    kernel_max_vals.append(max_val)
+                    kernel_max_indices.append(max_index)
+
+            
+            self.max_values.append(kernel_max_vals)
+            self.locations.append(kernel_max_indices)
+
+        return self.max_values 
+
+        
 
 
 #An entire neural network        
@@ -298,7 +368,18 @@ def main():
     #convo_layer.calculate([nums, nums])
 
     convo_layer = ConvolutionalLayer(2, 2, 0, (3,3,2), 0.1, [[1, 0, 0, 1, 0, 1, 1, 0], [2,0, 0,2, 0,2, 2,0]])
-    convo_layer.calculate([[0, 1, 0, 1, 0, 1, 1, 1, 1], [1,0,1, 0,1,0, 0,0,0]])
+    output = convo_layer.calculate([[0, 1, 0, 1, 0, 1, 1, 1, 1], [1,0,1, 0,1,0, 0,0,0]])
+    print(output)
+    print()
+
+    flatten_layer = FlattenLayer((2, 4))
+    output = flatten_layer.calculate(output)
+    print(output)
+
+    print('\n')
+    m = MaxPoolingLayer(2, (4,4,1))
+    output = m.calculate([[0,1,3,2, 2,3,1,0, 4,5,8,9, 7,6,3,4]])
+    print(output)
 
 
 if __name__ == '__main__':
