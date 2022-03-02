@@ -133,7 +133,7 @@ class ConvolutionalLayer:
         self.activation = activation
         self.input_dim = input_dim      # NOTE: this should always be three dimensions, even if the third dimension is 1. Should be a tuple/list of form (width, height, depth)
         self.lr = lr
-        self.weights = weights
+        self.weights = weights          # should be a 2d vector. first dim = kernel, second dim = weights for that kernel
 
         # we need to initialize the weights if none were passed
         if self.weights == None:
@@ -152,6 +152,7 @@ class ConvolutionalLayer:
         # get the number of neurons in a kernel
         # this should be (Wi-Wf + 1) * (Hi - Hf + 1) where W is width, H is height, i is input, f is filter (which is kernel)
         num_neurons = (self.input_dim[0] - self.kernel_size + 1) * (self.input_dim[1] - self.kernel_size + 1)
+        self.feature_map_dim = num_neurons ** 0.5
 
         for i in range(self.num_kernels):
             kernel_neurons = list()
@@ -161,6 +162,48 @@ class ConvolutionalLayer:
                 kernel_neurons.append(n)
 
             self.all_kernels.append(kernel_neurons)
+
+    def calculate(self, input):
+        # input should be a 2d list. The first dimension is channels, the second dimension is all the inputs for that kernel
+        # so a 3x3x2 input would be of form 2x9, for 2 channels and 9 numbers per channel
+        
+        all_outputs = []    # list of lists, first dimension is kernel, second dimension is feature map from that kernel
+
+        # 6d for loop. try to keep up.
+        # first step is each kernel
+        for kernel in range(self.num_kernels):
+            all_inputs = []
+            
+            # next up is the number of different starting rows
+            for starting_row in range(self.kernel_size):
+                # next up is the number of starting columns
+                for starting_col in range(self.kernel_size):
+
+                    # now the following 3d for loop gets all of the inputs for the specific neuron
+                    kernel_inputs = []
+                    # 3d for loop. First step is all channels
+                    for channel in range(self.input_dim[2]):
+
+                        # next step: each row in kernel
+                        for row in range(self.kernel_size):
+
+                            # final loop: each column in kernel
+                            for col in range(self.kernel_size):
+                                actual_row = (starting_row + row) * self.input_dim[0]
+                                actual_col = (starting_col + col)
+                                kernel_inputs.append(input[channel][actual_row + actual_col])
+
+                    all_inputs.append(kernel_inputs)
+
+            # once we've finished these 5 loops, we have all the inputs we need to find the feature map of this kernel
+            feature_map = []
+            for neuron, input_val in zip(self.all_kernels[kernel], all_inputs):
+                feature_map.append(neuron.calculate(input_val))
+
+            all_outputs.append(feature_map)
+
+        print(all_outputs)
+
 
 #An entire neural network        
 class NeuralNetwork:
@@ -249,14 +292,14 @@ class NeuralNetwork:
 
 
 def main():
-    convo_layer = ConvolutionalLayer(1, 3, 0, (5, 5, 1), 0.1)
-    
-    """
-    for kernel in convo_layer.all_kernels:
-        for neuron in kernel:
-            print(neuron.weights)
-            print(neuron.num_inputs)
-    """
+    #convo_layer = ConvolutionalLayer(1, 3, 0, (5, 5, 2), 0.1)
+    #convo_layer.calculate([[1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]])
+    #nums = list((x for x in range(25)))
+    #convo_layer.calculate([nums, nums])
+
+    convo_layer = ConvolutionalLayer(2, 2, 0, (3,3,2), 0.1, [[1, 0, 0, 1, 0, 1, 1, 0], [2,0, 0,2, 0,2, 2,0]])
+    convo_layer.calculate([[0, 1, 0, 1, 0, 1, 1, 1, 1], [1,0,1, 0,1,0, 0,0,0]])
+
 
 if __name__ == '__main__':
     main()
