@@ -124,7 +124,44 @@ class FullyConnected:
         array = array.sum(axis=0)
         return array
            
-        
+
+# convolutional layer class
+class ConvolutionalLayer: 
+    def __init__(self, num_kernels, kernel_size, activation, input_dim, lr, weights=None):
+        self.num_kernels = num_kernels
+        self.kernel_size = kernel_size
+        self.activation = activation
+        self.input_dim = input_dim      # NOTE: this should always be three dimensions, even if the third dimension is 1. Should be a tuple/list of form (width, height, depth)
+        self.lr = lr
+        self.weights = weights
+
+        # we need to initialize the weights if none were passed
+        if self.weights == None:
+            self.weights = []   # this will be a vector of vectors, one vector for each kernel
+            for i in range(self.num_kernels):
+                # number of weights = width of kernel * height of kernel * number of channels + 1 for the bias
+                num_weights = self.kernel_size * self.kernel_size * self.input_dim[2] + 1
+                kernel_weights = list()
+                kernel_weights = [x for x in np.random.randn(num_weights)]
+                self.weights.append(kernel_weights)
+
+        # next we need to initialize the kernels
+        # because of how the project is set up, instead of treating a kernel like a kernel, we're going to have our "kernels" be
+        # a vector of vectors, where each vector is a single kernel, and inside that vector are all of the output neurons since the kernel is really just the weights
+        self.all_kernels = []
+        # get the number of neurons in a kernel
+        # this should be (Wi-Wf + 1) * (Hi - Hf + 1) where W is width, H is height, i is input, f is filter (which is kernel)
+        num_neurons = (self.input_dim[0] - self.kernel_size + 1) * (self.input_dim[1] - self.kernel_size + 1)
+
+        for i in range(self.num_kernels):
+            kernel_neurons = list()
+            for j in range(num_neurons):
+                # NOTE: input size when initializing the neuron excludes the bias because the neuron adds that itself
+                n = Neuron(self.activation, (self.kernel_size ** 2 * self.input_dim[2]), self.lr, self.weights[i])
+                kernel_neurons.append(n)
+
+            self.all_kernels.append(kernel_neurons)
+
 #An entire neural network        
 class NeuralNetwork:
     #initialize with the number of layers, number of neurons in each layer (vector), input size, activation (for each layer), the loss function, the learning rate and a 3d matrix of weights weights (or else initialize randomly)
@@ -208,3 +245,18 @@ class NeuralNetwork:
     def addLayer(type_layer):
         pass
 
+
+
+
+def main():
+    convo_layer = ConvolutionalLayer(1, 3, 0, (5, 5, 1), 0.1)
+    
+    """
+    for kernel in convo_layer.all_kernels:
+        for neuron in kernel:
+            print(neuron.weights)
+            print(neuron.num_inputs)
+    """
+
+if __name__ == '__main__':
+    main()
