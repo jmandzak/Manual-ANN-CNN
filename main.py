@@ -211,12 +211,12 @@ class ConvolutionalLayer:
 # Flattening Layer
 class FlattenLayer:
     def __init__(self, input_size):
-        self.input_size = input_size    # input size should be a tuple or list in the form (num_channels, num_neurons)
+        self.input_size = input_size    # input size should be a tuple in form (width, height, depth)
 
     def calculate(self, input):
         output = []
-        for channel in range(self.input_size[0]):
-            for neuron in range(self.input_size[1]):
+        for channel in range(self.input_size[2]):
+            for neuron in range(self.input_size[0] * self.input_size[1]):
                 output.append(input[channel][neuron])
 
         return output
@@ -279,19 +279,21 @@ class MaxPoolingLayer:
 class NeuralNetwork:
     #initialize with the number of layers, number of neurons in each layer (vector), input size, activation (for each layer), the loss function, the learning rate and a 3d matrix of weights weights (or else initialize randomly)
     def __init__(self, input_size, loss_function, lr):
-        self.num_inputs = inputSize
-        self.loss = loss
+        self.num_inputs = input_size
+        self.loss = loss_function
         self.lr = lr
 
-        # for graphing purposes
-        self.losses = []
+        self.all_layers = []
+        self.last_input = input_size
     
     #Given an input, calculate the output (using the layers calculate() method)
     def calculate(self,input):
-        for i in range(self.num_layers):
-            input = self.all_layers[i].calculate(input)
+        for layer in self.all_layers:
+            print(input)
+            input = layer.calculate(input)
             
         # return the output
+        print(input)
         return input
     
         
@@ -355,31 +357,86 @@ class NeuralNetwork:
             wtimesdelta = layer.calcwdeltas(wtimesdelta)
 
     # not sure right now what else needs to be put in here but def need more params
-    def addLayer(type_layer):
-        pass
+    def addLayer(self, type_layer, kernel_size=None, num_kernels=None, activation=None, num_neurons=None, weights=None):
+        """
+            type_layer is either:
+                'conv', 'flatten', 'pool', 'dense'
+        """
+
+        # create the layer, add it to layers list, figure out output shape
+
+        if(type_layer == 'conv'):
+            layer = ConvolutionalLayer(num_kernels, kernel_size, activation, self.last_input, self.lr, weights)
+            self.all_layers.append(layer)
+            self.last_input = (int(layer.feature_map_dim), int(layer.feature_map_dim), int(num_kernels)) # width, height, depth
+
+        elif (type_layer == 'flatten'):
+            layer = FlattenLayer(self.last_input)
+            self.all_layers.append(layer)
+
+            # we can make this 1 dimensional now since only thing that comes after this is dense
+            self.last_input = int(self.last_input[0] * self.last_input[1] * self.last_input[2])
+
+        elif (type_layer == 'pool'):
+            layer = MaxPoolingLayer(kernel_size, self.last_input)
+            self.all_layers.append(layer)
+            self.last_input = (int(layer.feature_map_dim), int(layer.feature_map_dim), int(self.last_input[2]))
+
+        elif (type_layer == 'dense'):
+            layer = FullyConnected(num_neurons, activation, self.last_input, self.lr, weights)
+            self.all_layers.append(layer)
+            self.last_input = int(num_neurons)
 
 
 
+
+"""
+For this entire file there are a few constants:
+activation:
+0 - linear
+1 - logistic (only one supported)
+loss:
+0 - sum of square errors
+1 - binary cross entropy
+"""
 
 def main():
+    nn = NeuralNetwork((6, 6, 1), 0, 0.1)
+    convo_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2]]
+    nn.addLayer('conv', 3, 1, 0, weights=convo_weights)
+    nn.addLayer('pool', 2)
+    nn.addLayer('flatten')
+    nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
+    nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+
+    print('\nNow try with 2 kernels')
+    # now to try with channels
+    convo_2d_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2], [1, 1, 1, 0, 0, 0, 2, 2, 2]]
+    nn = NeuralNetwork((6, 6, 1), 0, 0.1)
+    nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=0, weights=convo_2d_weights)
+    nn.addLayer('pool', 2)
+    nn.addLayer('flatten')
+    nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, 1, 2, 3, 4, .5]])
+    nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+
     #convo_layer = ConvolutionalLayer(1, 3, 0, (5, 5, 2), 0.1)
     #convo_layer.calculate([[1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]])
     #nums = list((x for x in range(25)))
     #convo_layer.calculate([nums, nums])
 
-    convo_layer = ConvolutionalLayer(2, 2, 0, (3,3,2), 0.1, [[1, 0, 0, 1, 0, 1, 1, 0], [2,0, 0,2, 0,2, 2,0]])
-    output = convo_layer.calculate([[0, 1, 0, 1, 0, 1, 1, 1, 1], [1,0,1, 0,1,0, 0,0,0]])
-    print(output)
-    print()
+    # convo_layer = ConvolutionalLayer(2, 2, 0, (3,3,2), 0.1, [[1, 0, 0, 1, 0, 1, 1, 0], [2,0, 0,2, 0,2, 2,0]])
+    # output = convo_layer.calculate([[0, 1, 0, 1, 0, 1, 1, 1, 1], [1,0,1, 0,1,0, 0,0,0]])
+    # print(output)
+    # print()
 
-    flatten_layer = FlattenLayer((2, 4))
-    output = flatten_layer.calculate(output)
-    print(output)
+    # flatten_layer = FlattenLayer((2, 4))
+    # output = flatten_layer.calculate(output)
+    # print(output)
 
-    print('\n')
-    m = MaxPoolingLayer(2, (4,4,1))
-    output = m.calculate([[0,1,3,2, 2,3,1,0, 4,5,8,9, 7,6,3,4]])
-    print(output)
+    # print('\n')
+    # m = MaxPoolingLayer(2, (4,4,1))
+    # output = m.calculate([[0,1,3,2, 2,3,1,0, 4,5,8,9, 7,6,3,4]])
+    # print(output)
 
 
 if __name__ == '__main__':
