@@ -24,6 +24,7 @@ l1k1=l1k1.reshape(3,3,1,1)
 l1k2=l1k2.reshape(3,3,1,1)
 
 w1=np.concatenate((l1k1,l1k2),axis=3)
+print(w1)
 model.layers[0].set_weights([w1,np.array([l1b1[0],l1b2[0]])]) #Shape of weight matrix is (w,h,input_channels,kernels)
 
 
