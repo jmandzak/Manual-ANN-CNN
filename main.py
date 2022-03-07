@@ -206,6 +206,9 @@ class ConvolutionalLayer:
 
         return all_outputs
 
+    def calcwdeltas(self, wtimesdelta):
+        pass
+
 
 
 # Flattening Layer
@@ -220,6 +223,22 @@ class FlattenLayer:
                 output.append(input[channel][neuron])
 
         return output
+
+    def calcwdeltas(self, wtimesdelta):
+        # this function simply reshapes the given wtimesdelta into the original shape
+        # current wtimesdelta will have one extra val for the output neuron bias, ignore it
+        new_wtimesdelta = []
+        i = 0
+
+        # loop through channels then through the kernel itself
+        for channel in range(self.input_size[2]):
+            current_kernel = []
+            for neuron in range(self.input_size[0] * self.input_size[1]):
+                current_kernel.append(wtimesdelta[i])
+                i += 1
+            new_wtimesdelta.append(current_kernel)
+
+        return new_wtimesdelta
 
 
 # Max Pooling Layer
@@ -270,9 +289,25 @@ class MaxPoolingLayer:
             self.max_values.append(kernel_max_vals)
             self.locations.append(kernel_max_indices)
 
-        return self.max_values 
+        return self.max_values
 
-        
+    def calcwdeltas(self, wtimesdelta):
+        # here we just unpool the wtimesdelta into the shape of the input, with all non-max locations = 0
+        new_wtimesdelta = []
+
+        for channel in range(self.input_dim[2]):
+            current_kernel = []
+            max_val = 0
+            for neuron in range(self.input_dim[0] * self.input_dim[1]):
+                if neuron in self.locations[channel]:
+                    current_kernel.append(wtimesdelta[channel][max_val])
+                    max_val += 1
+                else:
+                    current_kernel.append(0)
+
+            new_wtimesdelta.append(current_kernel)
+
+        return new_wtimesdelta
 
 
 #An entire neural network        
@@ -289,11 +324,11 @@ class NeuralNetwork:
     #Given an input, calculate the output (using the layers calculate() method)
     def calculate(self,input):
         for layer in self.all_layers:
-            print(input)
+            print(f'output = {input}')
             input = layer.calculate(input)
             
         # return the output
-        print(input)
+        print(f'final output = {input}')
         return input
     
         
@@ -343,9 +378,10 @@ class NeuralNetwork:
         # do the forward pass
         input = x
         self.final_output = self.calculate(input)
+        print()
 
         # save the loss
-        self.losses.append(self.calculateloss(self.final_output, y))
+        # self.losses.append(self.calculateloss(self.final_output, y))
 
         # now get the last layer's delta
         wtimesdelta = []
@@ -354,6 +390,7 @@ class NeuralNetwork:
         
         # now pass it to each layer
         for layer in reversed(self.all_layers):
+            print(f'wtimesdelta = {wtimesdelta}')
             wtimesdelta = layer.calcwdeltas(wtimesdelta)
 
     # not sure right now what else needs to be put in here but def need more params
@@ -407,17 +444,40 @@ def main():
     nn.addLayer('pool', 2)
     nn.addLayer('flatten')
     nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
-    nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+    x = [[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]]
+    y = [5]
+    nn.train(x, y)
 
-    print('\nNow try with 2 kernels')
-    # now to try with channels
-    convo_2d_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2], [1, 1, 1, 0, 0, 0, 2, 2, 2]]
-    nn = NeuralNetwork((6, 6, 1), 0, 0.1)
-    nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=0, weights=convo_2d_weights)
-    nn.addLayer('pool', 2)
-    nn.addLayer('flatten')
-    nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, 1, 2, 3, 4, .5]])
-    nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+    # print('\nNow try with 2 kernels')
+    # # now to try with channels
+    # convo_2d_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2], [1, 1, 1, 0, 0, 0, 2, 2, 2]]
+    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
+    # nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=0, weights=convo_2d_weights)
+    # nn.addLayer('pool', 2)
+    # nn.addLayer('flatten')
+    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, 1, 2, 3, 4, .5]])
+    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+
+    # # now try with back to back convolutions
+    # print('\nnow try with back to back convolutions')
+    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
+    # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
+    # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
+    # nn.addLayer('flatten')
+    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
+    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+    
+    # # now try with back to back convolutions with 2 kernels
+    # print('\nnow try with back to back convolutions with 2 kernels')
+    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
+    # nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=0, weights=convo_2d_weights)
+
+    # convo_3by3by2_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2, 1, 1, 1, 0, 0, 0, 2, 2, 2]]
+    # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_3by3by2_weights)
+    # nn.addLayer('flatten')
+    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
+    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
 
     #convo_layer = ConvolutionalLayer(1, 3, 0, (5, 5, 2), 0.1)
     #convo_layer.calculate([[1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]])
