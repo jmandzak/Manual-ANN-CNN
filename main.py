@@ -2,6 +2,7 @@
 #import matplotlib.pyplot as plt
 import numpy as np
 import sys
+from parameters import generateExample2
 """
 For this entire file there are a few constants:
 activation:
@@ -438,16 +439,63 @@ loss:
 """
 
 def main():
-    nn = NeuralNetwork((6, 6, 1), 0, 0.1)
-    convo_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2]]
-    nn.addLayer('conv', 3, 1, 0, weights=convo_weights)
-    nn.addLayer('pool', 2)
-    nn.addLayer('flatten')
-    nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
-    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
-    x = [[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]]
-    y = [5]
-    nn.train(x, y)
+    if (len(sys.argv)<2):
+        print('Usage: python main.py [example1/example2/example3]')
+        exit()
+
+    example = sys.argv[1]
+
+    if example == 'example2':
+        l1k1,l1k2,l1b1,l1b2,l2c1,l2c2,l2b,l3,l3b,input,output = generateExample2()
+
+        # change all the numpy arrays to our format
+        k1w1 = []
+        for row in l1k1:
+            for col in row:
+                k1w1.append(col)
+        k1w1.append(l1b1[0])
+
+        k1w2 = []
+        for row in l1k2:
+            for col in row:
+                k1w2.append(col)
+        k1w1.append(l1b2[0])
+
+        k2w1 = []
+        for row in l2c1:
+            for col in row:
+                k2w1.append(col)
+        for row in l2c2:
+            for col in row:
+                k2w1.append(col)
+        k2w1.append(l2b[0])
+
+        l3w1 = list(l3[0])#.append(l3b[0])
+        l3w1.append(l3b[0])
+
+        my_input = []
+        for row in input:
+            my_input.extend(row)
+
+        nn = NeuralNetwork((7, 7, 1), 0, 100)
+        nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=1, weights=[k1w1, k1w2])
+        nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=1, weights=[k2w1])
+        nn.addLayer('flatten')
+        nn.addLayer('dense', activation=1, num_neurons=1, weights=[l3w1])
+
+        nn.calculate([my_input])
+
+
+    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
+    # convo_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2]]
+    # nn.addLayer('conv', 3, 1, 0, weights=convo_weights)
+    # nn.addLayer('pool', 2)
+    # nn.addLayer('flatten')
+    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
+    # # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+    # x = [[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]]
+    # y = [5]
+    # nn.train(x, y)
 
     # print('\nNow try with 2 kernels')
     # # now to try with channels
