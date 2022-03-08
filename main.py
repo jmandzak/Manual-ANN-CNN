@@ -2,7 +2,7 @@
 #import matplotlib.pyplot as plt
 import numpy as np
 import sys
-from parameters import generateExample2
+from parameters import generateExample2, generateExample1, generateExample3
 """
 For this entire file there are a few constants:
 activation:
@@ -208,7 +208,82 @@ class ConvolutionalLayer:
         return all_outputs
 
     def calcwdeltas(self, wtimesdelta):
-        pass
+        print(f'weights = {self.all_kernels[0][0].weights}\n')
+        # print(f'wtimesdelta = {(wtimesdelta)}\n\n')
+        # print(f'wtimesdelta = {len(wtimesdelta[0])}\n\n')
+        # print(f'wtimesdelta = {len(wtimesdelta[1])}\n\n')
+        # lot of things to do here. First, create a output map of all 0s for next layer's wtimesdelta
+        new_wtimesdelta = []
+        for channel in range(self.input_dim[2]):
+            current_kernel = []
+            for row in range(self.input_dim[0]):
+                for col in range(self.input_dim[1]):
+                    current_kernel.append(0)
+            new_wtimesdelta.append(current_kernel)
+
+        # now we have a 2d list where first dim = channel and second dim = kernel of 0s
+        # lets grab all the possible wtimesdeltas from this current layer
+        # print(f'\n\nLOOK HERE: {wtimesdelta}\n')
+        current_wtimesdelta = []
+        for channel, layer in zip(wtimesdelta, self.all_kernels):
+            current_kernel_wtimesdelta = []
+            for delta, neuron in zip(channel, layer):
+                current_kernel_wtimesdelta.append(list(neuron.calcpartialderivative(delta)))
+
+            current_wtimesdelta.append(current_kernel_wtimesdelta)
+        
+        # current_wtimesdelta is a 3d list. 
+        #   first dim = channel
+        #   second dim = kernel
+        #   third dim = wtimesdelta
+
+        # now we need to do pseudo convolutions
+        # first step is each kernel
+        for kernel in range(self.num_kernels):
+            all_inputs = []
+            which_wtimesdelta = 0
+            
+            # next up is the number of different starting rows
+            for starting_row in range(self.feature_map_dim):
+                # next up is the number of starting columns
+                for starting_col in range(self.feature_map_dim):
+
+                    # next step: each row in kernel
+                    for row in range(self.kernel_size):
+
+                        # final loop: each column in kernel
+                        for col in range(self.kernel_size):
+                            actual_row = (starting_row + row) * self.input_dim[0]
+                            actual_col = (starting_col + col)
+
+                            print()
+                            print(f'current_wtimesdelta = {len(current_wtimesdelta)}')
+                            print(f'self.input_dim[2] = {self.input_dim[2]}')
+                            print(f'kernel = {kernel}')
+                            print(f'actual_row + actual_col = {actual_row+actual_col}')
+                            print(f'which_wtimesdelta = {which_wtimesdelta}')
+                            print(f'row * self.kernel_size + col = {row * self.kernel_size + col}')
+                            print()
+                            new_wtimesdelta[kernel][actual_row + actual_col] = 0
+
+                            new_wtimesdelta[kernel][actual_row + actual_col] += current_wtimesdelta[kernel][which_wtimesdelta][row * self.kernel_size + col]
+
+                    which_wtimesdelta += 1
+
+        # now new_wtimesdelta contains the wtimesdelta we'll return
+        # before we can return though, we need to update the weights
+        for layer in self.all_kernels:
+            # sum the delta * input for each neuron
+            final_update = 0
+            for neuron in layer:
+                final_update += neuron.delta * neuron.input
+            # now update the weights of each neuron the same
+            for neuron in layer:
+                neuron.weights = neuron.weights - neuron.lr * final_update
+
+        # now all the weights should be updated properly, we can return the wtimesdelta now
+        return new_wtimesdelta
+
 
 
 
@@ -325,7 +400,7 @@ class NeuralNetwork:
     #Given an input, calculate the output (using the layers calculate() method)
     def calculate(self,input):
         for layer in self.all_layers:
-            print(f'output = {input}')
+            # print(f'output = {input}')
             input = layer.calculate(input)
             
         # return the output
@@ -366,7 +441,7 @@ class NeuralNetwork:
         # MSE loss
         if self.loss == 0:
             # out - target
-            return yp - y
+            return 2 * (yp - y)
         # Binary Cross Entropy
         else:
             # negative out / target + (1 - target) / (1 - out)
@@ -391,7 +466,7 @@ class NeuralNetwork:
         
         # now pass it to each layer
         for layer in reversed(self.all_layers):
-            print(f'wtimesdelta = {wtimesdelta}')
+            # print(f'wtimesdelta = {wtimesdelta}')
             wtimesdelta = layer.calcwdeltas(wtimesdelta)
 
     # not sure right now what else needs to be put in here but def need more params
@@ -445,6 +520,37 @@ def main():
 
     example = sys.argv[1]
 
+    if example == 'example1':
+        l1k1,l1b1,l3,l3b,input,output = generateExample1()
+
+        # change all the numpy arrays to our format
+        k1w1 = []
+        for row in l1k1:
+            for col in row:
+                k1w1.append(col)
+        k1w1.append(l1b1[0])
+
+        l3w1 = list(l3[0])
+        l3w1.append(l3b[0])
+
+        my_input = []
+        for row in input:
+            my_input.extend(row)
+
+        output = list(output)
+
+        nn = NeuralNetwork((5, 5, 1), 0, 100)
+        nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=1, weights=[k1w1])
+        nn.addLayer('flatten')
+        nn.addLayer('dense', activation=1, num_neurons=1, weights=[l3w1])
+
+        nn.train([my_input], output)
+        nn.calculate([my_input])
+
+        # now go through and print out all the weights
+        print(f'1st convolutional layer weights: \n{nn.all_layers[0].all_kernels[0][0].weights}\n')
+        print(f'fully connected layer weights:\n{nn.all_layers[2].all_neurons[0].weights}\n')
+
     if example == 'example2':
         l1k1,l1k2,l1b1,l1b2,l2c1,l2c2,l2b,l3,l3b,input,output = generateExample2()
 
@@ -459,7 +565,7 @@ def main():
         for row in l1k2:
             for col in row:
                 k1w2.append(col)
-        k1w1.append(l1b2[0])
+        k1w2.append(l1b2[0])
 
         k2w1 = []
         for row in l2c1:
@@ -477,13 +583,56 @@ def main():
         for row in input:
             my_input.extend(row)
 
+        output = list(output)
+
         nn = NeuralNetwork((7, 7, 1), 0, 100)
         nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=1, weights=[k1w1, k1w2])
         nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=1, weights=[k2w1])
         nn.addLayer('flatten')
         nn.addLayer('dense', activation=1, num_neurons=1, weights=[l3w1])
 
+        #nn.calculate([my_input])
+        nn.train([my_input], output)
         nn.calculate([my_input])
+
+
+    if(example == 'example3'):
+        l1k1,l1k2,l1b1,l1b2,l3,l3b,input,output = generateExample3()
+
+        # change all the numpy arrays to our format
+        k1w1 = []
+        for row in l1k1:
+            for col in row:
+                k1w1.append(col)
+        k1w1.append(l1b1[0])
+
+        k1w2 = []
+        for row in l1k2:
+            for col in row:
+                k1w2.append(col)
+        k1w2.append(l1b2[0])
+
+        l3w1 = list(l3[0])
+        l3w1.append(l3b[0])
+
+        my_input = []
+        for row in input:
+            my_input.extend(row)
+
+        output = list(output)
+
+        nn = NeuralNetwork(input_size=(8,8,1), loss_function=0, lr=100)
+        nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=1, weights=[k1w1, k1w2])
+        nn.addLayer('pool', 2)
+        nn.addLayer('flatten')
+        nn.addLayer('dense', activation=1, num_neurons=1, weights=[l3w1])
+
+        nn.train([my_input], output)
+        nn.calculate([my_input])
+        
+        print(f'1st convolutional layer weights: \n{nn.all_layers[0].all_kernels[0][0].weights}\n')
+        print(f'1st convolutional, second kernel weights:\n{nn.all_layers[0].all_kernels[1][0].weights}\n')
+        print(f'fully connected layer weights:\n{nn.all_layers[3].all_neurons[0].weights}\n')
 
 
     # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
@@ -507,14 +656,15 @@ def main():
     # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, 1, 2, 3, 4, .5]])
     # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
 
-    # # now try with back to back convolutions
-    # print('\nnow try with back to back convolutions')
-    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
-    # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
-    # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
-    # nn.addLayer('flatten')
-    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
-    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
+        # # now try with back to back convolutions
+        # print('\nnow try with back to back convolutions')
+        # convo_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2, 0]]
+        # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
+        # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
+        # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
+        # nn.addLayer('flatten')
+        # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, 0]])
+        # nn.train([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]], [1])
     
     # # now try with back to back convolutions with 2 kernels
     # print('\nnow try with back to back convolutions with 2 kernels')
