@@ -1,8 +1,12 @@
-# for graphing purposes only use matplotlib
-#import matplotlib.pyplot as plt
+# silence as many tensorflow warnings as possible
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 import numpy as np
 import sys
 from parameters import generateExample2, generateExample1, generateExample3
+from tensorflowtest_examples import example1, example2, example3
+
 """
 For this entire file there are a few constants:
 activation:
@@ -505,6 +509,7 @@ def main():
     example = sys.argv[1]
 
     if example == 'example1':
+        print('\n\n********************PROJECT MODEL********************\n')
         l1k1,l1b1,l3,l3b,input,output = generateExample1()
 
         # change all the numpy arrays to our format
@@ -528,14 +533,40 @@ def main():
         nn.addLayer('flatten')
         nn.addLayer('dense', activation=1, num_neurons=1, weights=[l3w1])
 
+        before_train_output = nn.calculate([my_input])
         nn.train([my_input], output)
-        nn.calculate([my_input])
+        after_train_output = nn.calculate([my_input])
 
-        # now go through and print out all the weights
-        print(f'1st convolutional layer weights: \n{nn.all_layers[0].all_kernels[0][0].weights}\n')
-        print(f'fully connected layer weights:\n{nn.all_layers[2].all_neurons[0].weights}\n')
+        # print the before and after accuracy
+        print(f'Accuracy before training: {round(before_train_output[0], 5)}')
+        print(f'Accuracy after training:  {round(after_train_output[0], 5)}')
+        print()
+
+        # now go through and print the weights
+        print(f'convolutional layer weights (my_model):')
+        i = 0
+        for weight in nn.all_layers[0].all_kernels[0][0].weights[:-1]:
+            print(round(weight, 5), end=' ')
+            i += 1
+            if i%3 == 0:
+                print()
+        print()
+        print(f'convolutional layer bias (my_model):')
+        print(round(nn.all_layers[0].all_kernels[0][0].weights[-1], 5))
+        print()
+
+        print(f'fully connected layer weights (my_model):')
+        for weight in nn.all_layers[2].all_neurons[0].weights[:-1]:
+            print(round(weight, 5), end=' ')
+        print('\n')
+        print(f'fully connected layer bias (my_model):\n{round(nn.all_layers[2].all_neurons[0].weights[-1], 5)}\n')
+
+        print('\n\n********************TENSORFLOW MODEL********************\n')
+        example1()
+
 
     if example == 'example2':
+        print('\n\n********************PROJECT MODEL********************\n')
         l1k1,l1k2,l1b1,l1b2,l2c1,l2c2,l2b,l3,l3b,input,output = generateExample2()
 
         # change all the numpy arrays to our format
@@ -626,8 +657,12 @@ def main():
             print(round(weight, 5), end=' ')
         print('\n')
         print(f'fully connected layer bias (my_model):\n{round(nn.all_layers[3].all_neurons[0].weights[-1], 5)}\n')
+        
+        print('\n\n********************TENSORFLOW MODEL********************\n')
+        example2()
 
     if(example == 'example3'):
+        print('\n\n********************PROJECT MODEL********************\n')
         l1k1,l1k2,l1b1,l1b2,l3,l3b,input,output = generateExample3()
 
         # change all the numpy arrays to our format
@@ -658,75 +693,48 @@ def main():
         nn.addLayer('flatten')
         nn.addLayer('dense', activation=1, num_neurons=1, weights=[l3w1])
 
+        before_train_output = nn.calculate([my_input])
         nn.train([my_input], output)
-        nn.calculate([my_input])
+        after_train_output = nn.calculate([my_input])
+
+        # print the before and after accuracy
+        print(f'Accuracy before training: {round(before_train_output[0], 5)}')
+        print(f'Accuracy after training:  {round(after_train_output[0], 5)}')
+        print()
+
+        # now go through and print the weights
+        print(f'1st convolutional layer, 1st kernel weights (my_model):')
+        i = 0
+        for weight in nn.all_layers[0].all_kernels[0][0].weights[:-1]:
+            print(round(weight, 5), end=' ')
+            i += 1
+            if i%3 == 0:
+                print()
+        print()
+        print(f'1st convolutional layer, 1st kernel bias (my_model):')
+        print(round(nn.all_layers[0].all_kernels[0][0].weights[-1], 5))
+        print()
+
+        print(f'1st convolutional layer, 2nd kernel weights (my_model):')
+        i = 0
+        for weight in nn.all_layers[0].all_kernels[1][0].weights[:-1]:
+            print(round(weight, 5), end=' ')
+            i += 1
+            if i%3 == 0:
+                print()
+        print()
+        print(f'1st convolutional layer, 2nd kernel bias (my_model):')
+        print(round(nn.all_layers[0].all_kernels[1][0].weights[-1], 5))
+        print()
+
+        print(f'fully connected layer weights (my_model):')
+        for weight in nn.all_layers[3].all_neurons[0].weights[:-1]:
+            print(round(weight, 5), end=' ')
+        print('\n')
+        print(f'fully connected layer bias (my_model):\n{round(nn.all_layers[3].all_neurons[0].weights[-1], 5)}\n')
         
-        print(f'1st convolutional layer weights: \n{nn.all_layers[0].all_kernels[0][0].weights}\n')
-        print(f'1st convolutional, second kernel weights:\n{nn.all_layers[0].all_kernels[1][0].weights}\n')
-        print(f'fully connected layer weights:\n{nn.all_layers[3].all_neurons[0].weights}\n')
-
-
-    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
-    # convo_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2]]
-    # nn.addLayer('conv', 3, 1, 0, weights=convo_weights)
-    # nn.addLayer('pool', 2)
-    # nn.addLayer('flatten')
-    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
-    # # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
-    # x = [[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]]
-    # y = [5]
-    # nn.train(x, y)
-
-    # print('\nNow try with 2 kernels')
-    # # now to try with channels
-    # convo_2d_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2], [1, 1, 1, 0, 0, 0, 2, 2, 2]]
-    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
-    # nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=0, weights=convo_2d_weights)
-    # nn.addLayer('pool', 2)
-    # nn.addLayer('flatten')
-    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, 1, 2, 3, 4, .5]])
-    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
-
-        # # now try with back to back convolutions
-        # print('\nnow try with back to back convolutions')
-        # convo_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2, 0]]
-        # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
-        # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
-        # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_weights)
-        # nn.addLayer('flatten')
-        # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, 0]])
-        # nn.train([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]], [1])
-    
-    # # now try with back to back convolutions with 2 kernels
-    # print('\nnow try with back to back convolutions with 2 kernels')
-    # nn = NeuralNetwork((6, 6, 1), 0, 0.1)
-    # nn.addLayer('conv', kernel_size=3, num_kernels=2, activation=0, weights=convo_2d_weights)
-
-    # convo_3by3by2_weights = [[1, 1, 1, 0, 0, 0, 2, 2, 2, 1, 1, 1, 0, 0, 0, 2, 2, 2]]
-    # nn.addLayer('conv', kernel_size=3, num_kernels=1, activation=0, weights=convo_3by3by2_weights)
-    # nn.addLayer('flatten')
-    # nn.addLayer('dense', num_neurons=1, activation=0, weights=[[1, 2, 3, 4, .5]])
-    # nn.calculate([[0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6, 0,0,0,0,0,0, 1,2,3,4,5,6]])
-
-    #convo_layer = ConvolutionalLayer(1, 3, 0, (5, 5, 2), 0.1)
-    #convo_layer.calculate([[1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5]])
-    #nums = list((x for x in range(25)))
-    #convo_layer.calculate([nums, nums])
-
-    # convo_layer = ConvolutionalLayer(2, 2, 0, (3,3,2), 0.1, [[1, 0, 0, 1, 0, 1, 1, 0], [2,0, 0,2, 0,2, 2,0]])
-    # output = convo_layer.calculate([[0, 1, 0, 1, 0, 1, 1, 1, 1], [1,0,1, 0,1,0, 0,0,0]])
-    # print(output)
-    # print()
-
-    # flatten_layer = FlattenLayer((2, 4))
-    # output = flatten_layer.calculate(output)
-    # print(output)
-
-    # print('\n')
-    # m = MaxPoolingLayer(2, (4,4,1))
-    # output = m.calculate([[0,1,3,2, 2,3,1,0, 4,5,8,9, 7,6,3,4]])
-    # print(output)
-
+        print('\n\n********************TENSORFLOW MODEL********************\n')
+        example3()
 
 if __name__ == '__main__':
     main()
