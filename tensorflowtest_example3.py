@@ -37,7 +37,7 @@ img=np.expand_dims(input,axis=(0,3))
 
 
 #print needed values.
-np.set_printoptions(precision=5)
+np.set_printoptions(precision=10)
 print('model output before:')
 print(model.predict(img))
 sgd = optimizers.SGD(lr=100)

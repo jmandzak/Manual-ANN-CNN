@@ -208,10 +208,10 @@ class ConvolutionalLayer:
         return all_outputs
 
     def calcwdeltas(self, wtimesdelta):
-        print(f'weights = {self.all_kernels[0][0].weights}\n')
+        # print(f'weights = {self.all_kernels[0][0].weights}\n')
         # print(f'wtimesdelta = {(wtimesdelta)}\n\n')
-        # print(f'wtimesdelta = {len(wtimesdelta[0])}\n\n')
-        # print(f'wtimesdelta = {len(wtimesdelta[1])}\n\n')
+        # print(f'len(wtimesdelta[0]) = {len(wtimesdelta[0])}\n\n')
+        # print(f'len(wtimesdelta[1]) = {len(wtimesdelta[1])}\n\n')
         # lot of things to do here. First, create a output map of all 0s for next layer's wtimesdelta
         new_wtimesdelta = []
         for channel in range(self.input_dim[2]):
@@ -234,19 +234,22 @@ class ConvolutionalLayer:
         
         # current_wtimesdelta is a 3d list. 
         #   first dim = channel
-        #   second dim = kernel
-        #   third dim = wtimesdelta
+        #   second dim = list of wtimesdelta of size kernel_dim ** 2
+        #   third dim = wtimesdelta of individual neuron
 
         # now we need to do pseudo convolutions
         # first step is each kernel
-        for kernel in range(self.num_kernels):
-            all_inputs = []
-            which_wtimesdelta = 0
+        # for kernel in range(self.num_kernels):
+        #     all_inputs = []
+        #     which_wtimesdelta = 0
             
-            # next up is the number of different starting rows
-            for starting_row in range(self.feature_map_dim):
-                # next up is the number of starting columns
-                for starting_col in range(self.feature_map_dim):
+        which_wtimesdelta = 0
+        # next up is the number of different starting rows
+        for starting_row in range(self.feature_map_dim):
+            # next up is the number of starting columns
+            for starting_col in range(self.feature_map_dim):
+
+                for kernel in range(self.input_dim[2]):
 
                     # next step: each row in kernel
                     for row in range(self.kernel_size):
@@ -256,19 +259,18 @@ class ConvolutionalLayer:
                             actual_row = (starting_row + row) * self.input_dim[0]
                             actual_col = (starting_col + col)
 
-                            print()
-                            print(f'current_wtimesdelta = {len(current_wtimesdelta)}')
-                            print(f'self.input_dim[2] = {self.input_dim[2]}')
-                            print(f'kernel = {kernel}')
-                            print(f'actual_row + actual_col = {actual_row+actual_col}')
-                            print(f'which_wtimesdelta = {which_wtimesdelta}')
-                            print(f'row * self.kernel_size + col = {row * self.kernel_size + col}')
-                            print()
-                            new_wtimesdelta[kernel][actual_row + actual_col] = 0
+                            # print()
+                            # print(f'current_wtimesdelta = {len(current_wtimesdelta)}')
+                            # print(f'self.input_dim[2] = {self.input_dim[2]}')
+                            # print(f'kernel = {kernel}')
+                            # print(f'actual_row + actual_col = {actual_row+actual_col}')
+                            # print(f'which_wtimesdelta = {which_wtimesdelta}')
+                            # print(f'row * self.kernel_size + col = {row * self.kernel_size + col}')
+                            # print()
 
-                            new_wtimesdelta[kernel][actual_row + actual_col] += current_wtimesdelta[kernel][which_wtimesdelta][row * self.kernel_size + col]
+                            new_wtimesdelta[kernel][actual_row + actual_col] += current_wtimesdelta[0][which_wtimesdelta][row * self.kernel_size + col + (kernel * self.kernel_size * self.kernel_size)]
 
-                    which_wtimesdelta += 1
+                which_wtimesdelta += 1
 
         # now new_wtimesdelta contains the wtimesdelta we'll return
         # before we can return though, we need to update the weights
@@ -328,6 +330,15 @@ class MaxPoolingLayer:
         self.locations = []     # this will be a 2d list of all locations of max vals. first dim = channel, second dim = locations
         self.max_values = []    # also a 2d matrix, this time of the max vals
 
+        # print('\n\n\nINPUT=')
+        # for channel in range(2):
+        #     for row in range(6):
+        #         for col in range(6):
+        #             print(round(input[channel][row*6 + col], 2), end=' ')
+        #         print()
+        #     print('\n')
+        # print('\n\n')
+
         # create list for looping purposes
         stride_loop = [i for i in range(self.input_dim[0]) if i%self.kernel_size == 0]
        
@@ -365,6 +376,10 @@ class MaxPoolingLayer:
             self.max_values.append(kernel_max_vals)
             self.locations.append(kernel_max_indices)
 
+        
+        # print('\n\n\OUTPUT=')
+        # print(self.max_values)
+        # print('\n\n')
         return self.max_values
 
     def calcwdeltas(self, wtimesdelta):
@@ -382,6 +397,15 @@ class MaxPoolingLayer:
                     current_kernel.append(0)
 
             new_wtimesdelta.append(current_kernel)
+
+        # print('\n\n\nMASK=')
+        # for channel in range(2):
+        #     for row in range(6):
+        #         for col in range(6):
+        #             print('1' if new_wtimesdelta[channel][row*6 + col] > 0 else '0', end=' ')
+        #         print()
+        #     print('\n')
+        # print('\n\n')
 
         return new_wtimesdelta
 
@@ -595,6 +619,11 @@ def main():
         nn.train([my_input], output)
         nn.calculate([my_input])
 
+        # now go through and print the weights
+        print(f'1st convolutional layer weights: \n{nn.all_layers[0].all_kernels[0][0].weights}\n')
+        print(f'1st convolutional, second kernel weights:\n{nn.all_layers[0].all_kernels[1][0].weights}\n')
+        print(f'2nd convolutional layer weights: \n{nn.all_layers[1].all_kernels[0][0].weights}\n')
+        print(f'fully connected layer weights:\n{nn.all_layers[3].all_neurons[0].weights}\n')
 
     if(example == 'example3'):
         l1k1,l1k2,l1b1,l1b2,l3,l3b,input,output = generateExample3()
