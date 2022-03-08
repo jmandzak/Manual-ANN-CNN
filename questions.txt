@@ -1,4 +1,0 @@
-What does "simply add up the updates(delta x outx) calculated each neuron" mean? what's the sum?
-when calculating the E/outx, if there are multiple kernels of E/outo will there just be multiple kernels of E/outx?
-How does bias play into backprop for convolution
-do we have to call update_weight to update convolution layer weights since they'd each have different deltas
